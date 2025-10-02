@@ -5,18 +5,14 @@ from sklearn.metrics import accuracy_score, confusion_matrix, classification_rep
 import joblib
 import streamlit as st
 
-# -------------------------------
 # Load models
-# -------------------------------
 models = {
     "KNN": joblib.load("models/knn_pipeline.joblib"),
     "SVM": joblib.load("models/svm_pipeline.joblib"),
     "Logistic Regression": joblib.load("models/lr_pipeline.joblib")
 }
 
-# -------------------------------
-# Sidebar controls
-# -------------------------------
+# Sidebar
 model_choice = st.sidebar.selectbox("🧠 Choose a model", list(models.keys()))
 show_confusion = st.sidebar.checkbox("Show Confusion Matrix")
 show_report = st.sidebar.checkbox("Show Classification Report")
@@ -26,57 +22,33 @@ show_category_table = st.sidebar.checkbox("Show Breakdown by Region")
 
 model = models[model_choice]
 
-# -------------------------------
 # File upload
-# -------------------------------
 uploaded_file = st.file_uploader("📂 Upload your CSV", type=["csv"])
 if uploaded_file:
     data = pd.read_csv(uploaded_file)
-
     st.session_state["data"] = data
 
-# -------------------------------
-# Use stored data
-# -------------------------------
 if "data" in st.session_state:
     data = st.session_state["data"]
     st.subheader("📄 Preview of Uploaded Data")
     st.dataframe(data.head())
     st.write("📋 Columns in your file:", data.columns.tolist())
 
-    # -------------------------------
-    # Feature and label names (underscore version)
-    # -------------------------------
     numeric_feat = [
-        'Mesh_size_(mm)',
-        'Volunteers_Number',
-        'Collecting_Time_(min)',
-        'year',
-        'month',
-        'day',
-        'Water_Sample_Depth_(m)',
-        'Standardized_Nurdle_Amount',
-        'Microplastics_measurement'
+        'Mesh size (mm)', 'Volunteers Number', 'Collecting Time (min)',
+        'year', 'month', 'day', 'Water Sample Depth (m)',
+        'Standardized Nurdle  Amount', 'Microplastics measurement'
     ]
+    categorical_feat = ['Ocean','Region','Country','Marine Setting','Sampling Method']
+    label_col = 'Concentration class text'
 
-    categorical_feat = [
-        'Ocean',
-        'Region',
-        'Country',
-        'Marine_Setting',
-        'Sampling_Method'
-    ]
-
-    feature_cols = numeric_feat + categorical_feat
-    label_col = "Concentration_class"
-
-    # Check required columns exist
-    missing_cols = [col for col in feature_cols + [label_col] if col not in data.columns]
+    # Check for missing columns
+    missing_cols = [col for col in numeric_feat + categorical_feat + [label_col] if col not in data.columns]
     if missing_cols:
         st.error(f"❌ Columns are missing in the uploaded file: {missing_cols}")
         st.stop()
 
-    X_input = data[feature_cols]
+    X_input = data[numeric_feat + categorical_feat]
     y_true_available = label_col in data.columns
     if y_true_available:
         y_true = data[label_col].astype(str)
@@ -87,18 +59,14 @@ if "data" in st.session_state:
             y_pred = model.predict(X_input)
             y_pred_labels = y_pred.astype(str)
 
-            # Add predictions to dataframe
             results = data.copy()
             results["Prediction"] = y_pred
             results["Prediction_Label"] = y_pred_labels
 
-            # Summary table
+            # Summary
             st.subheader("📊 Prediction Summary")
             summary = results["Prediction_Label"].value_counts()
-            summary_df = pd.DataFrame({
-                "Concentration_Level": summary.index,
-                "Count": summary.values
-            })
+            summary_df = pd.DataFrame({"Concentration_Level": summary.index, "Count": summary.values})
             st.table(summary_df)
 
             # Region breakdown
@@ -107,17 +75,16 @@ if "data" in st.session_state:
                 region_summary = results.groupby("Region")["Prediction_Label"].value_counts().unstack().fillna(0).astype(int)
                 st.dataframe(region_summary)
 
-            # Advisory message
-            high_count = summary_df.loc[summary_df["Concentration_Level"].isin(["High", "Very High"]), "Count"].sum()
+            # Environmental advice
+            high_count = summary_df.loc[summary_df["Concentration_Level"].isin(["High","Very High"]), "Count"].sum()
             if show_advice and high_count > 0:
                 st.warning(f"⚠️ {high_count} samples show High or Very High microplastic concentration.")
                 st.markdown("""
 **🌱 Environmental Advice:**  
-High microplastic levels can harm marine life and ecosystems. Consider:
-- Organizing local beach cleanups  
-- Advocating for reduced plastic use and better waste management  
-- Supporting policies that regulate industrial plastic discharge  
-- Educating communities about microplastic pollution
+- Organize local beach cleanups  
+- Reduce plastic use  
+- Support industrial waste regulations  
+- Educate communities about microplastics
 """)
 
             # Bar chart
@@ -127,7 +94,7 @@ High microplastic levels can harm marine life and ecosystems. Consider:
             ax.set_ylabel("Sample Count")
             st.pyplot(fig)
 
-            # Metrics (only if true labels exist)
+            # Metrics
             if y_true_available:
                 st.subheader("📈 Model Metrics")
                 st.write("Accuracy:", accuracy_score(y_true, y_pred_labels))
@@ -166,6 +133,5 @@ High microplastic levels can harm marine life and ecosystems. Consider:
 
         except Exception as e:
             st.error(f"Prediction failed: {e}")
-
 else:
     st.info("Please upload a CSV file to begin.")
