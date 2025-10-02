@@ -36,6 +36,14 @@ model = models[model_choice]
 # App title
 st.title("🌊 Microplastic Detection App")
 
+# Show label encoding summary
+st.subheader("📘 Microplastic Concentration Labels")
+label_df = pd.DataFrame({
+    "Label": ["Very Low", "Low", "Medium", "High", "Very High"],
+    "Encoding": [0, 1, 2, 3, 4]
+})
+st.table(label_df)
+
 # File upload
 uploaded_file = st.file_uploader("📂 Upload your CSV", type=["csv"])
 if uploaded_file:
@@ -49,9 +57,6 @@ if uploaded_file:
             results = data.copy()
             results["Prediction"] = predictions
             results["Prediction Label"] = results["Prediction"].map(class_map)
-
-            st.subheader("✅ Predictions")
-            st.dataframe(results[["Prediction", "Prediction Label"]])
 
             # Download button
             st.download_button(
