@@ -30,15 +30,15 @@ if uploaded_file:
     st.subheader("📄 Preview of Uploaded Data")
     st.dataframe(data.head())
 
-    if "Concentration class" not in data.columns:
-        st.error("❌ 'Concentration class' column not found in uploaded file.")
+    if "Concentration_class" not in data.columns:
+        st.error("❌ 'Concentration_class' column not found in uploaded file.")
     else:
         if st.button("🔍 Predict"):
             try:
                 # Encode true labels
                 le = LabelEncoder()
-                y_true_encoded = le.fit_transform(data["Concentration class"])
-                X_input = data.drop(columns=["Concentration class"])
+                y_true_encoded = le.fit_transform(data["Concentration_class"])
+                X_input = data.drop(columns=["Concentration_class"])
                 y_pred_encoded = model.predict(X_input)
                 y_pred_labels = le.inverse_transform(y_pred_encoded)
 
