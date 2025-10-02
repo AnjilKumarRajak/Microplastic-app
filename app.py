@@ -9,9 +9,18 @@ st.set_page_config(page_title="Microplastic Detection App", layout="wide")
 # Sidebar guide
 st.sidebar.title("🧪 Microplastic Classifier")
 st.sidebar.markdown("""
-Upload your microplastic data and choose a model to classify samples.  
-Results are shown instantly and can be downloaded.
+Upload your microplastic sampling data and choose a model to classify concentration levels.  
+Results are shown instantly, visualized, and downloadable.
 """)
+
+# Class mapping
+class_map = {
+    0: "Very Low",
+    1: "Low",
+    2: "Medium",
+    3: "High",
+    4: "Very High"
+}
 
 # Load models
 models = {
@@ -27,7 +36,7 @@ model = models[model_choice]
 # App title
 st.title("🌊 Microplastic Detection App")
 
-# Upload data
+# File upload
 uploaded_file = st.file_uploader("📂 Upload your CSV", type=["csv"])
 if uploaded_file:
     data = pd.read_csv(uploaded_file)
@@ -39,9 +48,10 @@ if uploaded_file:
             predictions = model.predict(data)
             results = data.copy()
             results["Prediction"] = predictions
+            results["Prediction Label"] = results["Prediction"].map(class_map)
 
             st.subheader("✅ Predictions")
-            st.dataframe(results)
+            st.dataframe(results[["Prediction", "Prediction Label"]])
 
             # Download button
             st.download_button(
@@ -54,8 +64,25 @@ if uploaded_file:
             # Visualization
             st.subheader("📊 Prediction Distribution")
             fig, ax = plt.subplots()
-            sns.countplot(x="Prediction", data=results, ax=ax)
+            sns.countplot(x="Prediction Label", data=results, order=list(class_map.values()), ax=ax)
+            ax.set_xlabel("Concentration Level")
+            ax.set_ylabel("Sample Count")
             st.pyplot(fig)
+
+            # Advisory message
+            high_count = results["Prediction"].isin([3, 4]).sum()
+            if high_count > 0:
+                st.warning(f"⚠️ {high_count} samples show High or Very High microplastic concentration.")
+                st.markdown("""
+**🌱 Environmental Advice:**  
+High microplastic levels can harm marine life and ecosystems. Consider:
+- Organizing local beach cleanups  
+- Advocating for reduced plastic use and better waste management  
+- Supporting policies that regulate industrial plastic discharge  
+- Educating communities about microplastic pollution
+
+Every small action helps protect our oceans.
+""")
 
         except Exception as e:
             st.error(f"Prediction failed: {e}")
