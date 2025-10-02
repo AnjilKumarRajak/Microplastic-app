@@ -6,14 +6,18 @@ from sklearn.preprocessing import LabelEncoder
 import joblib
 import streamlit as st
 
+# ------------------------------
 # Load models
+# ------------------------------
 models = {
     "KNN": joblib.load("models/knn_pipeline.joblib"),
     "SVM": joblib.load("models/svm_pipeline.joblib"),
     "Logistic Regression": joblib.load("models/lr_pipeline.joblib")
 }
 
+# ------------------------------
 # Sidebar controls
+# ------------------------------
 model_choice = st.sidebar.selectbox("🧠 Choose a model", list(models.keys()))
 show_confusion = st.sidebar.checkbox("Show Confusion Matrix")
 show_report = st.sidebar.checkbox("Show Classification Report")
@@ -23,49 +27,34 @@ show_category_table = st.sidebar.checkbox("Show Breakdown by Region")
 
 model = models[model_choice]
 
+# ------------------------------
 # File upload
+# ------------------------------
 uploaded_file = st.file_uploader("📂 Upload your CSV", type=["csv"])
 if uploaded_file:
     data = pd.read_csv(uploaded_file)
     st.session_state["data"] = data
 
-# Function to map numeric values into categories
-def map_range_to_class(val):
-    try:
-        val = float(val)
-        if 0 <= val <= 0.5:
-            return "Very Low"
-        elif 0.5 < val <= 1.0:
-            return "Low"
-        elif 1.0 < val <= 2.0:
-            return "Medium"
-        elif 2.0 < val <= 3.0:
-            return "High"
-        else:
-            return "Very High"
-    except:
-        # If it's already a string label, return it directly
-        return val
-
-# Use stored data
+# ------------------------------
+# Main app
+# ------------------------------
 if "data" in st.session_state:
     data = st.session_state["data"]
     st.subheader("📄 Preview of Uploaded Data")
     st.dataframe(data.head())
     st.write("📋 Columns in your file:", data.columns.tolist())
 
-    # Use clean label column for evaluation
-    label_col = "Concentration class range"
+    # Label columns
+    label_col = "Concentration_class"           # categorical labels
+    range_col = "Concentration class range"     # numeric ranges (ignore in ML)
+
     valid_labels = ["Very Low", "Low", "Medium", "High", "Very High"]
 
     if label_col not in data.columns:
         st.error(f"❌ '{label_col}' column not found in uploaded file.")
         st.stop()
 
-    # ✅ Convert numeric values to categories
-    data[label_col] = data[label_col].apply(map_range_to_class)
-
-    # Filter out invalid labels
+    # Keep valid rows
     clean_data = data[data[label_col].isin(valid_labels)]
     if clean_data.empty:
         st.error("❌ No valid rows with known concentration class labels.")
@@ -73,22 +62,27 @@ if "data" in st.session_state:
 
     if st.button("🔍 Predict"):
         try:
-            # Encode true labels
+            # Encode ground truth labels
             le = LabelEncoder()
             y_true = le.fit_transform(clean_data[label_col])
             label_order = le.classes_
 
-            # Predict using full feature set (excluding label column)
-            X_input = clean_data.drop(columns=[label_col])
+            # Drop label + range columns before prediction
+            drop_cols = [label_col, range_col]
+            X_input = clean_data.drop(columns=drop_cols)
+
+            # Predict
             y_pred = model.predict(X_input)
 
-            # Map predictions back to readable labels
+            # Decode predictions
             y_pred_labels = le.inverse_transform(y_pred)
+
+            # Results
             results = clean_data.copy()
             results["Prediction"] = y_pred
             results["Prediction Label"] = y_pred_labels
 
-            # Summary table
+            # Summary
             st.subheader("📊 Prediction Summary")
             summary = results["Prediction Label"].value_counts().reindex(label_order, fill_value=0)
             summary_df = pd.DataFrame({
@@ -97,13 +91,13 @@ if "data" in st.session_state:
             })
             st.table(summary_df)
 
-            # Region breakdown
+            # Breakdown by region
             if show_category_table and "Region" in results.columns:
                 st.subheader("📍 Breakdown by Region")
                 region_summary = results.groupby("Region")["Prediction Label"].value_counts().unstack().fillna(0).astype(int)
                 st.dataframe(region_summary)
 
-            # Advisory message
+            # Advisory
             high_count = summary_df.loc[summary_df["Concentration Level"].isin(["High", "Very High"]), "Count"].sum()
             if show_advice and high_count > 0:
                 st.warning(f"⚠️ {high_count} samples show High or Very High microplastic concentration.")
@@ -158,7 +152,7 @@ High microplastic levels can harm marine life and ecosystems. Consider:
                     acc = accuracy_score(y_true, pred)
                     st.write(f"✅ {name}: {acc:.2f}")
 
-            # Download button
+            # Download predictions
             st.download_button(
                 label="📥 Download Predictions",
                 data=results.to_csv(index=False).encode("utf-8"),
