@@ -44,15 +44,17 @@ if "data" in st.session_state:
     st.dataframe(data.head())
     st.write("📋 Columns in your file:", data.columns.tolist())
 
-    # Label columns
-    label_col = "Concentration_class"           # categorical labels
-    range_col = "Concentration class range"     # numeric ranges (ignore in ML)
+    # Detect columns (handle underscore/space issues)
+    cols = {c.lower().replace(" ", "_"): c for c in data.columns}
+    label_col = cols.get("concentration_class", None)
+    range_col = cols.get("concentration_class_range", None)
 
-    valid_labels = ["Very Low", "Low", "Medium", "High", "Very High"]
-
-    if label_col not in data.columns:
-        st.error(f"❌ '{label_col}' column not found in uploaded file.")
+    if not label_col:
+        st.error("❌ Could not find a column for 'Concentration_class' in your file.")
         st.stop()
+
+    # Define valid labels
+    valid_labels = ["Very Low", "Low", "Medium", "High", "Very High"]
 
     # Keep valid rows
     clean_data = data[data[label_col].isin(valid_labels)]
@@ -68,7 +70,10 @@ if "data" in st.session_state:
             label_order = le.classes_
 
             # Drop label + range columns before prediction
-            drop_cols = [label_col, range_col]
+            drop_cols = [label_col]
+            if range_col:
+                drop_cols.append(range_col)
+
             X_input = clean_data.drop(columns=drop_cols)
 
             # Predict
