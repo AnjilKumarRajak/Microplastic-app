@@ -6,7 +6,7 @@ from sklearn.preprocessing import LabelEncoder
 import joblib
 import streamlit as st
 
-# Load models
+# Load pre-trained models
 models = {
     "KNN": joblib.load("models/knn_pipeline.joblib"),
     "SVM": joblib.load("models/svm_pipeline.joblib"),
@@ -36,25 +36,39 @@ if "data" in st.session_state:
     st.dataframe(data.head())
     st.write("📋 Columns in your file:", data.columns.tolist())
 
-    if "Concentration_class" not in data.columns:
-        st.error("❌ 'Concentration_class' column not found in uploaded file.")
+    # Define features exactly as in training
+    numeric_feat = [
+        'Mesh size (mm)', 'Volunteers Number', 'Collecting Time (min)',
+        'year', 'month', 'day', 'Water Sample Depth (m)',
+        'Standardized Nurdle  Amount', 'Microplastics measurement'
+    ]
+    categorical_feat = [
+        'Ocean', 'Region', 'Country', 'Marine Setting', 'Sampling Method'
+    ]
+    feature_cols = numeric_feat + categorical_feat
+
+    # Check if required columns exist
+    missing_cols = [c for c in feature_cols + ["Concentration_class"] if c not in data.columns]
+    if missing_cols:
+        st.error(f"❌ Columns are missing in the uploaded file: {missing_cols}")
         st.stop()
+
+    # Ensure Concentration_class is categorical and already mapped
+    y_true = data["Concentration_class"]
+    le = LabelEncoder()
+    y_true_encoded = le.fit_transform(y_true)
 
     if st.button("🔍 Predict"):
         try:
-            # Encode true labels
-            le = LabelEncoder()
-            y_true_encoded = le.fit_transform(data["Concentration_class"])
-
-            # Do NOT drop the label column — model expects it
-            X_input = data.copy()
+            # Use only columns required by the model
+            X_input = data[feature_cols]
             st.write("🧪 Columns passed to model:", X_input.columns.tolist())
 
             # Predict
             y_pred_encoded = model.predict(X_input)
             y_pred_labels = le.inverse_transform(y_pred_encoded)
 
-            # Add predictions
+            # Add predictions to dataframe
             results = data.copy()
             results["Prediction"] = y_pred_encoded
             results["Prediction Label"] = y_pred_labels
@@ -69,7 +83,7 @@ if "data" in st.session_state:
             st.table(summary_df)
 
             # Region breakdown
-            if show_category_table and "Region" in results.columns:
+            if show_category_table:
                 st.subheader("📍 Breakdown by Region")
                 region_summary = results.groupby("Region")["Prediction Label"].value_counts().unstack().fillna(0).astype(int)
                 st.dataframe(region_summary)
@@ -126,8 +140,8 @@ High microplastic levels can harm marine life and ecosystems. Consider:
             if compare_models:
                 st.subheader("📈 Accuracy Comparison")
                 for name, m in models.items():
-                    y_pred = m.predict(X_input)
-                    acc = accuracy_score(y_true_encoded, y_pred)
+                    pred = m.predict(X_input)
+                    acc = accuracy_score(y_true_encoded, le.transform(pred))
                     st.write(f"✅ {name}: {acc:.2f}")
 
             # Download button
