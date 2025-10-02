@@ -37,7 +37,7 @@ model = models[model_choice]
 st.title("🌊 Microplastic Detection App")
 
 # Show label encoding summary
-st.subheader("📘 Concentration Labels & Encodings")
+st.subheader("📊 Predicted Microplastic Concentration Summary")
 label_df = pd.DataFrame({
     "Label": ["Very Low", "Low", "Medium", "High", "Very High"],
     "Encoding": [0, 1, 2, 3, 4]
@@ -78,8 +78,8 @@ if uploaded_file:
             # Visualization
             fig, ax = plt.subplots()
             sns.barplot(x="Concentration Level", y="Count", data=summary_df, ax=ax)
-            ax.set_xlabel("Concentration Level")
-            ax.set_ylabel("Sample Count")
+            ax.set_xlabel("Predicted Pollution Level")
+            ax.set_ylabel("Number of Samples")
             st.pyplot(fig)
 
             # Advisory message
