@@ -36,14 +36,19 @@ if "data" in st.session_state:
     st.dataframe(data.head())
     st.write("📋 Columns in your file:", data.columns.tolist())
 
-    # Use clean label column
-    label_col = "Concentration_class"
+    # Use clean label column for evaluation
+    label_col = "Concentration class range"
+    valid_labels = ["Very Low", "Low", "Medium", "High", "Very High"]
+
     if label_col not in data.columns:
         st.error(f"❌ '{label_col}' column not found in uploaded file.")
         st.stop()
 
-    # Filter out rows with numeric labels (just in case)
-    clean_data = data[data[label_col].isin(["Very Low", "Low", "Medium", "High", "Very High"])]
+    # Filter out invalid labels
+    clean_data = data[data[label_col].isin(valid_labels)]
+    if clean_data.empty:
+        st.error("❌ No valid rows with known concentration class labels.")
+        st.stop()
 
     if st.button("🔍 Predict"):
         try:
@@ -52,8 +57,8 @@ if "data" in st.session_state:
             y_true = le.fit_transform(clean_data[label_col])
             label_order = le.classes_
 
-            # Predict
-            X_input = clean_data.copy()
+            # Predict using full feature set (including Concentration_class)
+            X_input = clean_data.drop(columns=[label_col])
             y_pred = model.predict(X_input)
 
             # Map predictions back to readable labels
