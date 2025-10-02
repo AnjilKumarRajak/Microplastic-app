@@ -64,7 +64,7 @@ if uploaded_file:
             # Visualization
             st.subheader("📊 Prediction Distribution")
             fig, ax = plt.subplots()
-            sns.countplot(x="Prediction Label", data=results, order=list(class_map.values()), ax=ax)
+            sns.countplot(x="Prediction Label", data=results, order=["Very Low", "Low", "Medium", "High", "Very High"], ax=ax)
             ax.set_xlabel("Concentration Level")
             ax.set_ylabel("Sample Count")
             st.pyplot(fig)
