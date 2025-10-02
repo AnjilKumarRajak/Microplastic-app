@@ -33,10 +33,6 @@ uploaded_file = st.file_uploader("📂 Upload your CSV", type=["csv"])
 if uploaded_file:
     data = pd.read_csv(uploaded_file)
 
-    # ⚡ Normalize column names: strip spaces and replace spaces with underscores
-    data.columns = data.columns.str.strip()
-    data.columns = data.columns.str.replace(r"\s+", "_", regex=True)
-
     st.session_state["data"] = data
 
 # -------------------------------
@@ -48,7 +44,9 @@ if "data" in st.session_state:
     st.dataframe(data.head())
     st.write("📋 Columns in your file:", data.columns.tolist())
 
-    # Correct feature & label names after normalization
+    # -------------------------------
+    # Feature and label names (underscore version)
+    # -------------------------------
     numeric_feat = [
         'Mesh_size_(mm)',
         'Volunteers_Number',
@@ -60,6 +58,7 @@ if "data" in st.session_state:
         'Standardized_Nurdle_Amount',
         'Microplastics_measurement'
     ]
+
     categorical_feat = [
         'Ocean',
         'Region',
@@ -67,10 +66,17 @@ if "data" in st.session_state:
         'Marine_Setting',
         'Sampling_Method'
     ]
-    feature_cols = [col for col in numeric_feat + categorical_feat if col in data.columns]
-    X_input = data[feature_cols]
 
+    feature_cols = numeric_feat + categorical_feat
     label_col = "Concentration_class"
+
+    # Check required columns exist
+    missing_cols = [col for col in feature_cols + [label_col] if col not in data.columns]
+    if missing_cols:
+        st.error(f"❌ Columns are missing in the uploaded file: {missing_cols}")
+        st.stop()
+
+    X_input = data[feature_cols]
     y_true_available = label_col in data.columns
     if y_true_available:
         y_true = data[label_col].astype(str)
