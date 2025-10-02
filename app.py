@@ -27,6 +27,11 @@ model = models[model_choice]
 uploaded_file = st.file_uploader("📂 Upload your CSV", type=["csv"])
 if uploaded_file:
     data = pd.read_csv(uploaded_file)
+    st.session_state["data"] = data  # Store in session to persist across reruns
+
+# Use stored data
+if "data" in st.session_state:
+    data = st.session_state["data"]
     st.subheader("📄 Preview of Uploaded Data")
     st.dataframe(data.head())
 
