@@ -2,7 +2,6 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
-from sklearn.preprocessing import LabelEncoder
 import joblib
 import streamlit as st
 
@@ -33,10 +32,11 @@ model = models[model_choice]
 uploaded_file = st.file_uploader("📂 Upload your CSV", type=["csv"])
 if uploaded_file:
     data = pd.read_csv(uploaded_file)
-    
-    # ⚡ FIX: Remove hidden spaces from column names
+
+    # ⚡ FIX: Strip spaces and replace spaces with underscores
     data.columns = data.columns.str.strip()
-    
+    data.columns = data.columns.str.replace(r"\s+", "_", regex=True)
+
     st.session_state["data"] = data
 
 # -------------------------------
@@ -50,17 +50,14 @@ if "data" in st.session_state:
 
     # Feature columns (match your pipeline)
     numeric_feat = [
-        'Mesh size (mm)', 'Volunteers Number', 'Collecting Time (min)',
+        'Mesh_size_(mm)', 'Volunteers_Number', 'Collecting_Time_(min)',
         'year', 'month', 'day',
-        'Water Sample Depth (m)', 'Standardized Nurdle  Amount', 'Microplastics measurement'
+        'Water_Sample_Depth_(m)', 'Standardized_Nurdle__Amount', 'Microplastics_measurement'
     ]
     categorical_feat = [
-        'Ocean', 'Region', 'Country', 'Marine Setting', 'Sampling Method'
+        'Ocean', 'Region', 'Country', 'Marine_Setting', 'Sampling_Method'
     ]
-    feature_cols = numeric_feat + categorical_feat
-
-    # Only keep features available in uploaded CSV
-    feature_cols = [col for col in feature_cols if col in data.columns]
+    feature_cols = [col for col in numeric_feat + categorical_feat if col in data.columns]
     X_input = data[feature_cols]
 
     # Check if true labels exist
@@ -73,20 +70,18 @@ if "data" in st.session_state:
         try:
             # Predict
             y_pred = model.predict(X_input)
-            
-            # Map predictions to string if needed
             y_pred_labels = y_pred.astype(str)
 
             # Add predictions to dataframe
             results = data.copy()
             results["Prediction"] = y_pred
-            results["Prediction Label"] = y_pred_labels
+            results["Prediction_Label"] = y_pred_labels
 
             # Summary table
             st.subheader("📊 Prediction Summary")
-            summary = results["Prediction Label"].value_counts()
+            summary = results["Prediction_Label"].value_counts()
             summary_df = pd.DataFrame({
-                "Concentration Level": summary.index,
+                "Concentration_Level": summary.index,
                 "Count": summary.values
             })
             st.table(summary_df)
@@ -94,11 +89,11 @@ if "data" in st.session_state:
             # Region breakdown
             if show_category_table and "Region" in results.columns:
                 st.subheader("📍 Breakdown by Region")
-                region_summary = results.groupby("Region")["Prediction Label"].value_counts().unstack().fillna(0).astype(int)
+                region_summary = results.groupby("Region")["Prediction_Label"].value_counts().unstack().fillna(0).astype(int)
                 st.dataframe(region_summary)
 
             # Advisory message
-            high_count = summary_df.loc[summary_df["Concentration Level"].isin(["High", "Very High"]), "Count"].sum()
+            high_count = summary_df.loc[summary_df["Concentration_Level"].isin(["High", "Very High"]), "Count"].sum()
             if show_advice and high_count > 0:
                 st.warning(f"⚠️ {high_count} samples show High or Very High microplastic concentration.")
                 st.markdown("""
@@ -112,7 +107,7 @@ High microplastic levels can harm marine life and ecosystems. Consider:
 
             # Bar chart
             fig, ax = plt.subplots()
-            sns.countplot(x="Prediction Label", data=results, order=summary.index, ax=ax)
+            sns.countplot(x="Prediction_Label", data=results, order=summary.index, ax=ax)
             ax.set_xlabel("Concentration Level")
             ax.set_ylabel("Sample Count")
             st.pyplot(fig)
@@ -139,13 +134,12 @@ High microplastic levels can harm marine life and ecosystems. Consider:
                     st.dataframe(pd.DataFrame(report).transpose())
 
             # Model comparison
-            if compare_models:
+            if compare_models and y_true_available:
                 st.subheader("📈 Accuracy Comparison")
-                if y_true_available:
-                    for name, m in models.items():
-                        pred = m.predict(X_input)
-                        acc = accuracy_score(y_true, pred)
-                        st.write(f"✅ {name}: {acc:.2f}")
+                for name, m in models.items():
+                    pred = m.predict(X_input)
+                    acc = accuracy_score(y_true, pred)
+                    st.write(f"✅ {name}: {acc:.2f}")
 
             # Download button
             st.download_button(
