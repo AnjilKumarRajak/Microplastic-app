@@ -36,17 +36,19 @@ if "data" in st.session_state:
     st.dataframe(data.head())
     st.write("📋 Columns in your file:", data.columns.tolist())
 
-    if "Concentration_class" not in data.columns:
-        st.error("❌ 'Concentration_class' column not found in uploaded file.")
+    # Check for label column
+    label_col = "Concentration class range"
+    if label_col not in data.columns:
+        st.error(f"❌ '{label_col}' column not found in uploaded file.")
         st.stop()
 
     if st.button("🔍 Predict"):
         try:
             # Encode true labels
             le = LabelEncoder()
-            y_true_encoded = le.fit_transform(data["Concentration_class"])
+            y_true_encoded = le.fit_transform(data[label_col])
 
-            # Do NOT drop the label column — model expects it
+            # Use full data including Concentration_class
             X_input = data.copy()
             st.write("🧪 Columns passed to model:", X_input.columns.tolist())
 
