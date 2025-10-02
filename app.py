@@ -45,19 +45,17 @@ if "data" in st.session_state:
     st.write("📋 Columns in your file:", data.columns.tolist())
 
     # ------------------------------
-    # Normalize column names to avoid mismatch
+    # Use original column names
     # ------------------------------
-    data.columns = data.columns.str.strip().str.replace(" ", "_").str.lower()
+    label_col = "Concentration_class"              # categorical labels (target)
+    range_col = "Concentration class range"       # numeric ranges (info only)
 
-    label_col = "concentration_class"            # categorical labels (target)
-    range_col = "concentration_class_range"      # numeric ranges (info only)
-
-    # Check if label exists
+    # Check label column
     if label_col not in data.columns:
         st.error(f"❌ Could not find '{label_col}' in file. Available columns: {list(data.columns)}")
         st.stop()
 
-    # Filter valid labels
+    # Keep only valid labels
     valid_labels = ["Very Low", "Low", "Medium", "High", "Very High"]
     clean_data = data[data[label_col].isin(valid_labels)]
     if clean_data.empty:
@@ -66,19 +64,19 @@ if "data" in st.session_state:
 
     if st.button("🔍 Predict"):
         try:
-            # Encode ground truth labels
+            # ------------------------------
+            # Encode labels
+            # ------------------------------
             le = LabelEncoder()
             y_true = le.fit_transform(clean_data[label_col])
             label_order = le.classes_
 
-            # Drop label and numeric range columns before prediction
+            # Drop target + range columns
             drop_cols = [label_col, range_col]
-            X_input = clean_data.drop(columns=drop_cols, errors="ignore")
+            X_input = clean_data.drop(columns=drop_cols, errors="ignore")  # keep all original feature columns
 
             # Predict
             y_pred = model.predict(X_input)
-
-            # Decode predictions
             y_pred_labels = le.inverse_transform(y_pred)
 
             # Build results dataframe
@@ -98,11 +96,11 @@ if "data" in st.session_state:
             st.table(summary_df)
 
             # ------------------------------
-            # Region breakdown
+            # Breakdown by Region
             # ------------------------------
-            if show_category_table and "region" in results.columns:
+            if show_category_table and "Region" in results.columns:
                 st.subheader("📍 Breakdown by Region")
-                region_summary = results.groupby("region")["Prediction Label"].value_counts().unstack().fillna(0).astype(int)
+                region_summary = results.groupby("Region")["Prediction Label"].value_counts().unstack().fillna(0).astype(int)
                 st.dataframe(region_summary)
 
             # ------------------------------
@@ -130,7 +128,7 @@ High microplastic levels can harm marine life and ecosystems. Consider:
             st.pyplot(fig)
 
             # ------------------------------
-            # Confusion matrix
+            # Confusion Matrix
             # ------------------------------
             if show_confusion:
                 st.subheader("🔍 Confusion Matrix")
@@ -143,7 +141,7 @@ High microplastic levels can harm marine life and ecosystems. Consider:
                 st.pyplot(fig)
 
             # ------------------------------
-            # Classification report
+            # Classification Report
             # ------------------------------
             if show_report:
                 st.subheader("📋 Classification Report")
