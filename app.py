@@ -36,24 +36,29 @@ if "data" in st.session_state:
     st.dataframe(data.head())
     st.write("📋 Columns in your file:", data.columns.tolist())
 
-    if "Concentration_class" not in data.columns:
-        st.error("❌ 'Concentration_class' column not found in uploaded file.")
+    # Use clean label column
+    label_col = "Concentration_class"
+    if label_col not in data.columns:
+        st.error(f"❌ '{label_col}' column not found in uploaded file.")
         st.stop()
+
+    # Filter out rows with numeric labels (just in case)
+    clean_data = data[data[label_col].isin(["Very Low", "Low", "Medium", "High", "Very High"])]
 
     if st.button("🔍 Predict"):
         try:
             # Encode true labels
             le = LabelEncoder()
-            y_true = le.fit_transform(data["Concentration_class"])
+            y_true = le.fit_transform(clean_data[label_col])
             label_order = le.classes_
 
             # Predict
-            X_input = data.copy()
+            X_input = clean_data.copy()
             y_pred = model.predict(X_input)
 
             # Map predictions back to readable labels
             y_pred_labels = le.inverse_transform(y_pred)
-            results = data.copy()
+            results = clean_data.copy()
             results["Prediction"] = y_pred
             results["Prediction Label"] = y_pred_labels
 
