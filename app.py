@@ -10,7 +10,7 @@ st.set_page_config(page_title="Microplastic Detection App", layout="wide")
 st.sidebar.title("🧪 Microplastic Classifier")
 st.sidebar.markdown("""
 Upload your microplastic sampling data and choose a model to classify concentration levels.  
-Results are shown instantly, visualized, and downloadable.
+You'll get a summary of predictions, visual insights, and actionable advice.
 """)
 
 # Class mapping
@@ -37,7 +37,7 @@ model = models[model_choice]
 st.title("🌊 Microplastic Detection App")
 
 # Show label encoding summary
-st.subheader("📘 Microplastic Concentration Labels")
+st.subheader("📘 Concentration Labels & Encodings")
 label_df = pd.DataFrame({
     "Label": ["Very Low", "Low", "Medium", "High", "Very High"],
     "Encoding": [0, 1, 2, 3, 4]
@@ -58,24 +58,32 @@ if uploaded_file:
             results["Prediction"] = predictions
             results["Prediction Label"] = results["Prediction"].map(class_map)
 
+            # Summary table of prediction counts
+            st.subheader("📊 Prediction Summary")
+            summary = results["Prediction Label"].value_counts().reindex(["Very Low", "Low", "Medium", "High", "Very High"], fill_value=0)
+            summary_df = pd.DataFrame({
+                "Concentration Level": summary.index,
+                "Count": summary.values
+            })
+            st.table(summary_df)
+
             # Download button
             st.download_button(
-                label="📥 Download Predictions",
+                label="📥 Download Full Predictions",
                 data=results.to_csv(index=False).encode("utf-8"),
                 file_name="microplastic_predictions.csv",
                 mime="text/csv"
             )
 
             # Visualization
-            st.subheader("📊 Prediction Distribution")
             fig, ax = plt.subplots()
-            sns.countplot(x="Prediction Label", data=results, order=["Very Low", "Low", "Medium", "High", "Very High"], ax=ax)
+            sns.barplot(x="Concentration Level", y="Count", data=summary_df, ax=ax)
             ax.set_xlabel("Concentration Level")
             ax.set_ylabel("Sample Count")
             st.pyplot(fig)
 
             # Advisory message
-            high_count = results["Prediction"].isin([3, 4]).sum()
+            high_count = summary_df.loc[summary_df["Concentration Level"].isin(["High", "Very High"]), "Count"].sum()
             if high_count > 0:
                 st.warning(f"⚠️ {high_count} samples show High or Very High microplastic concentration.")
                 st.markdown("""
