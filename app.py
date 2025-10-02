@@ -12,8 +12,14 @@ models = {
     "Logistic Regression": joblib.load("models/lr_pipeline.joblib")
 }
 
-# Choose model
-model_choice = st.sidebar.selectbox("Choose a model", list(models.keys()))
+# Sidebar controls
+model_choice = st.sidebar.selectbox("🧠 Choose a model", list(models.keys()))
+show_confusion = st.sidebar.checkbox("Show Confusion Matrix")
+show_report = st.sidebar.checkbox("Show Classification Report")
+compare_models = st.sidebar.checkbox("Compare All Models")
+show_advice = st.sidebar.checkbox("Show Environmental Advice", value=True)
+show_category_table = st.sidebar.checkbox("Show Breakdown by Region")
+
 model = models[model_choice]
 
 # File upload
@@ -28,27 +34,48 @@ if uploaded_file:
             predictions = model.predict(data)
             results = data.copy()
             results["Prediction"] = predictions
+            label_map = {0: "Very Low", 1: "Low", 2: "Medium", 3: "High", 4: "Very High"}
+            results["Prediction Label"] = results["Prediction"].map(label_map)
 
-            # Show prediction summary
+            # Summary table
             st.subheader("📊 Prediction Summary")
-            summary = results["Prediction"].value_counts().sort_index()
+            summary = results["Prediction Label"].value_counts().reindex(label_map.values(), fill_value=0)
             summary_df = pd.DataFrame({
-                "Class": summary.index,
+                "Concentration Level": summary.index,
                 "Count": summary.values
             })
             st.table(summary_df)
 
-            # Accuracy comparison (if true labels are available)
-            if "true_label" in data.columns:
-                y_true = data["true_label"]
-                st.subheader("📈 Model Accuracy Comparison")
-                for name, m in models.items():
-                    y_pred = m.predict(data.drop(columns=["true_label"]))
-                    acc = accuracy_score(y_true, y_pred)
-                    st.write(f"{name}: {acc:.2f}")
+            # Categorical breakdown
+            if show_category_table and "Region" in results.columns:
+                st.subheader("📍 Breakdown by Region")
+                region_summary = results.groupby("Region")["Prediction Label"].value_counts().unstack().fillna(0).astype(int)
+                st.dataframe(region_summary)
 
-            # Confusion matrix (if true labels are available)
-            if "true_label" in data.columns:
+            # Advisory message
+            high_count = summary_df.loc[summary_df["Concentration Level"].isin(["High", "Very High"]), "Count"].sum()
+            if show_advice and high_count > 0:
+                st.warning(f"⚠️ {high_count} samples show High or Very High microplastic concentration.")
+                st.markdown("""
+**🌱 Environmental Advice:**  
+High microplastic levels can harm marine life and ecosystems. Consider:
+- Organizing local beach cleanups  
+- Advocating for reduced plastic use and better waste management  
+- Supporting policies that regulate industrial plastic discharge  
+- Educating communities about microplastic pollution
+
+Every small action helps protect our oceans.
+""")
+
+            # Visualization
+            fig, ax = plt.subplots()
+            sns.countplot(x="Prediction Label", data=results, order=label_map.values(), ax=ax)
+            ax.set_xlabel("Concentration Level")
+            ax.set_ylabel("Sample Count")
+            st.pyplot(fig)
+
+            # Confusion matrix
+            if show_confusion and "true_label" in data.columns:
                 st.subheader("🔍 Confusion Matrix")
                 cm = confusion_matrix(data["true_label"], predictions)
                 fig, ax = plt.subplots()
@@ -57,15 +84,17 @@ if uploaded_file:
                 ax.set_ylabel("Actual")
                 st.pyplot(fig)
 
+            # Classification report
+            if show_report and "true_label" in data.columns:
                 st.subheader("📋 Classification Report")
                 report = classification_report(data["true_label"], predictions, output_dict=True)
                 st.dataframe(pd.DataFrame(report).transpose())
 
-            # Confidence visualization (Logistic Regression only)
+            # Confidence plot (Logistic Regression only)
             if model_choice == "Logistic Regression":
                 st.subheader("📊 Prediction Confidence")
                 probs = model.predict_proba(data)
-                prob_df = pd.DataFrame(probs, columns=["Very Low", "Low", "Medium", "High", "Very High"])
+                prob_df = pd.DataFrame(probs, columns=label_map.values())
                 fig, ax = plt.subplots()
                 sns.boxplot(data=prob_df, ax=ax)
                 ax.set_title("Prediction Confidence Distribution")
@@ -81,3 +110,5 @@ if uploaded_file:
 
         except Exception as e:
             st.error(f"Prediction failed: {e}")
+else:
+    st.info("Please upload a CSV file to begin.")
