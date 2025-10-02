@@ -45,22 +45,21 @@ if "data" in st.session_state:
     categorical_feat = [
         'Ocean', 'Region', 'Country', 'Marine Setting', 'Sampling Method'
     ]
-    feature_cols = numeric_feat + categorical_feat
+    feature_cols = numeric_feat + categorical_feat + ["Concentration_class"]  # Keep label column
 
     # Check if required columns exist
-    missing_cols = [c for c in feature_cols + ["Concentration_class"] if c not in data.columns]
+    missing_cols = [c for c in feature_cols if c not in data.columns]
     if missing_cols:
         st.error(f"❌ Columns are missing in the uploaded file: {missing_cols}")
         st.stop()
 
-    # Ensure Concentration_class is categorical and already mapped
-    y_true = data["Concentration_class"]
+    # LabelEncoder for display purposes
     le = LabelEncoder()
-    y_true_encoded = le.fit_transform(y_true)
+    y_true_encoded = le.fit_transform(data["Concentration_class"])
 
     if st.button("🔍 Predict"):
         try:
-            # Use only columns required by the model
+            # Use all required columns, including 'Concentration_class'
             X_input = data[feature_cols]
             st.write("🧪 Columns passed to model:", X_input.columns.tolist())
 
@@ -68,7 +67,7 @@ if "data" in st.session_state:
             y_pred_encoded = model.predict(X_input)
             y_pred_labels = le.inverse_transform(y_pred_encoded)
 
-            # Add predictions to dataframe
+            # Add predictions
             results = data.copy()
             results["Prediction"] = y_pred_encoded
             results["Prediction Label"] = y_pred_labels
