@@ -28,6 +28,7 @@ uploaded_file = st.file_uploader("📂 Upload your CSV", type=["csv"])
 if uploaded_file:
     data = pd.read_csv(uploaded_file)
     st.session_state["data"] = data  # Store in session to persist across reruns
+st.write("📋 Columns in your file:", data.columns.tolist())    
 
 # Use stored data
 if "data" in st.session_state:
