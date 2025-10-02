@@ -33,6 +33,10 @@ model = models[model_choice]
 uploaded_file = st.file_uploader("📂 Upload your CSV", type=["csv"])
 if uploaded_file:
     data = pd.read_csv(uploaded_file)
+    
+    # ⚡ FIX: Remove hidden spaces from column names
+    data.columns = data.columns.str.strip()
+    
     st.session_state["data"] = data
 
 # -------------------------------
@@ -70,11 +74,8 @@ if "data" in st.session_state:
             # Predict
             y_pred = model.predict(X_input)
             
-            # If true labels exist, encode predictions to strings consistently
-            if y_true_available:
-                y_pred_labels = y_pred.astype(str)
-            else:
-                y_pred_labels = y_pred
+            # Map predictions to string if needed
+            y_pred_labels = y_pred.astype(str)
 
             # Add predictions to dataframe
             results = data.copy()
