@@ -33,7 +33,7 @@ uploaded_file = st.file_uploader("📂 Upload your CSV", type=["csv"])
 if uploaded_file:
     data = pd.read_csv(uploaded_file)
 
-    # ⚡ FIX: Strip spaces and replace spaces with underscores
+    # ⚡ Normalize column names: strip spaces and replace spaces with underscores
     data.columns = data.columns.str.strip()
     data.columns = data.columns.str.replace(r"\s+", "_", regex=True)
 
@@ -48,19 +48,28 @@ if "data" in st.session_state:
     st.dataframe(data.head())
     st.write("📋 Columns in your file:", data.columns.tolist())
 
-    # Feature columns (match your pipeline)
+    # Correct feature & label names after normalization
     numeric_feat = [
-        'Mesh_size_(mm)', 'Volunteers_Number', 'Collecting_Time_(min)',
-        'year', 'month', 'day',
-        'Water_Sample_Depth_(m)', 'Standardized_Nurdle__Amount', 'Microplastics_measurement'
+        'Mesh_size_(mm)',
+        'Volunteers_Number',
+        'Collecting_Time_(min)',
+        'year',
+        'month',
+        'day',
+        'Water_Sample_Depth_(m)',
+        'Standardized_Nurdle_Amount',
+        'Microplastics_measurement'
     ]
     categorical_feat = [
-        'Ocean', 'Region', 'Country', 'Marine_Setting', 'Sampling_Method'
+        'Ocean',
+        'Region',
+        'Country',
+        'Marine_Setting',
+        'Sampling_Method'
     ]
     feature_cols = [col for col in numeric_feat + categorical_feat if col in data.columns]
     X_input = data[feature_cols]
 
-    # Check if true labels exist
     label_col = "Concentration_class"
     y_true_available = label_col in data.columns
     if y_true_available:
