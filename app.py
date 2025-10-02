@@ -2,6 +2,7 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+from sklearn.preprocessing import LabelEncoder
 import joblib
 import streamlit as st
 
@@ -11,16 +12,6 @@ models = {
     "SVM": joblib.load("models/svm_pipeline.joblib"),
     "Logistic Regression": joblib.load("models/lr_pipeline.joblib")
 }
-
-# Label mapping
-label_map = {
-    0: "Very Low",
-    1: "Low",
-    2: "Medium",
-    3: "High",
-    4: "Very High"
-}
-label_order = list(label_map.values())
 
 # Sidebar controls
 model_choice = st.sidebar.selectbox("🧠 Choose a model", list(models.keys()))
@@ -51,17 +42,20 @@ if "data" in st.session_state:
 
     if st.button("🔍 Predict"):
         try:
-            # True labels (already numeric)
-            y_true = data["Concentration_class"].astype(int)
+            # Encode true labels
+            le = LabelEncoder()
+            y_true = le.fit_transform(data["Concentration_class"])
+            label_order = le.classes_
 
             # Predict
             X_input = data.copy()
             y_pred = model.predict(X_input)
 
-            # Map predictions to labels
+            # Map predictions back to readable labels
+            y_pred_labels = le.inverse_transform(y_pred)
             results = data.copy()
             results["Prediction"] = y_pred
-            results["Prediction Label"] = pd.Series(y_pred).map(label_map)
+            results["Prediction Label"] = y_pred_labels
 
             # Summary table
             st.subheader("📊 Prediction Summary")
