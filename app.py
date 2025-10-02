@@ -2,7 +2,6 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
-from sklearn.preprocessing import LabelEncoder
 import joblib
 import streamlit as st
 
@@ -12,6 +11,16 @@ models = {
     "SVM": joblib.load("models/svm_pipeline.joblib"),
     "Logistic Regression": joblib.load("models/lr_pipeline.joblib")
 }
+
+# Label mapping
+label_map = {
+    0: "Very Low",
+    1: "Low",
+    2: "Medium",
+    3: "High",
+    4: "Very High"
+}
+label_order = list(label_map.values())
 
 # Sidebar controls
 model_choice = st.sidebar.selectbox("🧠 Choose a model", list(models.keys()))
@@ -36,34 +45,27 @@ if "data" in st.session_state:
     st.dataframe(data.head())
     st.write("📋 Columns in your file:", data.columns.tolist())
 
-    # Check for label column
-    label_col = "Concentration class range"
-    if label_col not in data.columns:
-        st.error(f"❌ '{label_col}' column not found in uploaded file.")
+    if "Concentration_class" not in data.columns:
+        st.error("❌ 'Concentration_class' column not found in uploaded file.")
         st.stop()
 
     if st.button("🔍 Predict"):
         try:
-            # Encode true labels
-            le = LabelEncoder()
-            y_true_encoded = le.fit_transform(data[label_col])
-
-            # Use full data including Concentration_class
-            X_input = data.copy()
-            st.write("🧪 Columns passed to model:", X_input.columns.tolist())
+            # True labels (already numeric)
+            y_true = data["Concentration_class"].astype(int)
 
             # Predict
-            y_pred_encoded = model.predict(X_input)
-            y_pred_labels = le.inverse_transform(y_pred_encoded)
+            X_input = data.copy()
+            y_pred = model.predict(X_input)
 
-            # Add predictions
+            # Map predictions to labels
             results = data.copy()
-            results["Prediction"] = y_pred_encoded
-            results["Prediction Label"] = y_pred_labels
+            results["Prediction"] = y_pred
+            results["Prediction Label"] = pd.Series(y_pred).map(label_map)
 
             # Summary table
             st.subheader("📊 Prediction Summary")
-            summary = results["Prediction Label"].value_counts().reindex(le.classes_, fill_value=0)
+            summary = results["Prediction Label"].value_counts().reindex(label_order, fill_value=0)
             summary_df = pd.DataFrame({
                 "Concentration Level": summary.index,
                 "Count": summary.values
@@ -77,8 +79,7 @@ if "data" in st.session_state:
                 st.dataframe(region_summary)
 
             # Advisory message
-            high_labels = ["High", "Very High"]
-            high_count = summary_df.loc[summary_df["Concentration Level"].isin(high_labels), "Count"].sum()
+            high_count = summary_df.loc[summary_df["Concentration Level"].isin(["High", "Very High"]), "Count"].sum()
             if show_advice and high_count > 0:
                 st.warning(f"⚠️ {high_count} samples show High or Very High microplastic concentration.")
                 st.markdown("""
@@ -92,7 +93,7 @@ High microplastic levels can harm marine life and ecosystems. Consider:
 
             # Bar chart
             fig, ax = plt.subplots()
-            sns.countplot(x="Prediction Label", data=results, order=le.classes_, ax=ax)
+            sns.countplot(x="Prediction Label", data=results, order=label_order, ax=ax)
             ax.set_xlabel("Concentration Level")
             ax.set_ylabel("Sample Count")
             st.pyplot(fig)
@@ -100,10 +101,10 @@ High microplastic levels can harm marine life and ecosystems. Consider:
             # Confusion matrix
             if show_confusion:
                 st.subheader("🔍 Confusion Matrix")
-                cm = confusion_matrix(y_true_encoded, y_pred_encoded)
+                cm = confusion_matrix(y_true, y_pred)
                 fig, ax = plt.subplots()
                 sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax,
-                            xticklabels=le.classes_, yticklabels=le.classes_)
+                            xticklabels=label_order, yticklabels=label_order)
                 ax.set_xlabel("Predicted")
                 ax.set_ylabel("Actual")
                 st.pyplot(fig)
@@ -111,14 +112,14 @@ High microplastic levels can harm marine life and ecosystems. Consider:
             # Classification report
             if show_report:
                 st.subheader("📋 Classification Report")
-                report = classification_report(y_true_encoded, y_pred_encoded, target_names=le.classes_, output_dict=True)
+                report = classification_report(y_true, y_pred, target_names=label_order, output_dict=True)
                 st.dataframe(pd.DataFrame(report).transpose())
 
             # Confidence plot (Logistic Regression only)
             if model_choice == "Logistic Regression":
                 st.subheader("📊 Prediction Confidence")
                 probs = model.predict_proba(X_input)
-                prob_df = pd.DataFrame(probs, columns=le.classes_)
+                prob_df = pd.DataFrame(probs, columns=label_order)
                 fig, ax = plt.subplots()
                 sns.boxplot(data=prob_df, ax=ax)
                 ax.set_title("Prediction Confidence Distribution")
@@ -128,8 +129,8 @@ High microplastic levels can harm marine life and ecosystems. Consider:
             if compare_models:
                 st.subheader("📈 Accuracy Comparison")
                 for name, m in models.items():
-                    y_pred = m.predict(X_input)
-                    acc = accuracy_score(y_true_encoded, y_pred)
+                    pred = m.predict(X_input)
+                    acc = accuracy_score(y_true, pred)
                     st.write(f"✅ {name}: {acc:.2f}")
 
             # Download button
