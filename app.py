@@ -7,17 +7,24 @@ import joblib
 import streamlit as st
 
 # ------------------------------
+# Pipeline feature columns
+# ------------------------------
+numeric_feat = ['Mesh size (mm)', 'Volunteers Number', 'Collecting Time (min)', 'year', 'month', 'day']
+categorical_feat = ['Ocean', 'Region', 'Country', 'Marine Setting', 'Sampling Method']
+feature_cols = numeric_feat + categorical_feat
+
+label_col = 'Concentration_class'  # Target
+range_col = 'Concentration class range'  # Optional info column
+
+# ------------------------------
 # Load models
 # ------------------------------
 models = {
     "KNN": joblib.load("models/knn_pipeline.joblib"),
-    "SVM": joblib.load("models/svm_pipeline.joblib"),
-    "Logistic Regression": joblib.load("models/lr_pipeline.joblib")
+    "SVM": joblib.load("models/svm_pipeline.joblib") if "models/svm_pipeline.joblib" else None,
+    "Logistic Regression": joblib.load("models/lr_pipeline.joblib") if "models/lr_pipeline.joblib" else None
 }
 
-# ------------------------------
-# Sidebar controls
-# ------------------------------
 model_choice = st.sidebar.selectbox("🧠 Choose a model", list(models.keys()))
 show_confusion = st.sidebar.checkbox("Show Confusion Matrix")
 show_report = st.sidebar.checkbox("Show Classification Report")
@@ -28,7 +35,7 @@ show_category_table = st.sidebar.checkbox("Show Breakdown by Region")
 model = models[model_choice]
 
 # ------------------------------
-# File upload
+# Upload CSV
 # ------------------------------
 uploaded_file = st.file_uploader("📂 Upload your CSV", type=["csv"])
 if uploaded_file:
@@ -36,7 +43,7 @@ if uploaded_file:
     st.session_state["data"] = data
 
 # ------------------------------
-# Main app
+# Main App
 # ------------------------------
 if "data" in st.session_state:
     data = st.session_state["data"]
@@ -44,15 +51,9 @@ if "data" in st.session_state:
     st.dataframe(data.head())
     st.write("📋 Columns in your file:", data.columns.tolist())
 
-    # ------------------------------
-    # Use original column names
-    # ------------------------------
-    label_col = "Concentration_class"              # categorical labels (target)
-    range_col = "Concentration class range"       # numeric ranges (info only)
-
-    # Check label column
+    # Check target column
     if label_col not in data.columns:
-        st.error(f"❌ Could not find '{label_col}' in file. Available columns: {list(data.columns)}")
+        st.error(f"❌ '{label_col}' column not found.")
         st.stop()
 
     # Keep only valid labels
@@ -65,15 +66,16 @@ if "data" in st.session_state:
     if st.button("🔍 Predict"):
         try:
             # ------------------------------
-            # Encode labels
+            # Encode target
             # ------------------------------
             le = LabelEncoder()
             y_true = le.fit_transform(clean_data[label_col])
             label_order = le.classes_
 
-            # Drop target + range columns
-            drop_cols = [label_col, range_col]
-            X_input = clean_data.drop(columns=drop_cols, errors="ignore")  # keep all original feature columns
+            # ------------------------------
+            # Select features exactly as in pipeline
+            # ------------------------------
+            X_input = clean_data[feature_cols]
 
             # Predict
             y_pred = model.predict(X_input)
@@ -104,7 +106,7 @@ if "data" in st.session_state:
                 st.dataframe(region_summary)
 
             # ------------------------------
-            # Advisory
+            # Environmental Advice
             # ------------------------------
             high_count = summary_df.loc[summary_df["Concentration Level"].isin(["High", "Very High"]), "Count"].sum()
             if show_advice and high_count > 0:
@@ -149,26 +151,15 @@ High microplastic levels can harm marine life and ecosystems. Consider:
                 st.dataframe(pd.DataFrame(report).transpose())
 
             # ------------------------------
-            # Confidence plot (Logistic Regression only)
-            # ------------------------------
-            if model_choice == "Logistic Regression":
-                st.subheader("📊 Prediction Confidence")
-                probs = model.predict_proba(X_input)
-                prob_df = pd.DataFrame(probs, columns=label_order)
-                fig, ax = plt.subplots()
-                sns.boxplot(data=prob_df, ax=ax)
-                ax.set_title("Prediction Confidence Distribution")
-                st.pyplot(fig)
-
-            # ------------------------------
             # Model comparison
             # ------------------------------
             if compare_models:
                 st.subheader("📈 Accuracy Comparison")
                 for name, m in models.items():
-                    pred = m.predict(X_input)
-                    acc = accuracy_score(y_true, pred)
-                    st.write(f"✅ {name}: {acc:.2f}")
+                    if m is not None:
+                        pred = m.predict(X_input)
+                        acc = accuracy_score(y_true, pred)
+                        st.write(f"✅ {name}: {acc:.2f}")
 
             # ------------------------------
             # Download predictions
