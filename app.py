@@ -27,32 +27,28 @@ model = models[model_choice]
 uploaded_file = st.file_uploader("📂 Upload your CSV", type=["csv"])
 if uploaded_file:
     data = pd.read_csv(uploaded_file)
-    st.session_state["data"] = data  # Persist across reruns
+    st.session_state["data"] = data
 
 # Use stored data
 if "data" in st.session_state:
     data = st.session_state["data"]
     st.subheader("📄 Preview of Uploaded Data")
     st.dataframe(data.head())
-    st.write("📋 Columns in your file:", data.columns.tolist())  # Debug view
+    st.write("📋 Columns in your file:", data.columns.tolist())
 
-    # Check for label column
-    label_col = [col for col in data.columns if col.strip().lower() == "concentration_class"]
-    if not label_col:
-        st.error("❌ 'Concentration_class' column not found. Please check your CSV.")
+    if "Concentration_class" not in data.columns:
+        st.error("❌ 'Concentration_class' column not found in uploaded file.")
         st.stop()
-
-    label_col = label_col[0]  # Use exact match
 
     if st.button("🔍 Predict"):
         try:
             # Encode true labels
             le = LabelEncoder()
-            y_true_encoded = le.fit_transform(data[label_col])
+            y_true_encoded = le.fit_transform(data["Concentration_class"])
 
-            # Drop label column safely
-            X_input = data.drop(columns=[label_col])
-            st.write("🧪 Columns passed to model:", X_input.columns.tolist())  # Debug view
+            # Do NOT drop the label column — model expects it
+            X_input = data.copy()
+            st.write("🧪 Columns passed to model:", X_input.columns.tolist())
 
             # Predict
             y_pred_encoded = model.predict(X_input)
