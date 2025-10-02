@@ -29,6 +29,24 @@ if uploaded_file:
     data = pd.read_csv(uploaded_file)
     st.session_state["data"] = data
 
+# Function to map numeric values into categories
+def map_range_to_class(val):
+    try:
+        val = float(val)
+        if 0 <= val <= 0.5:
+            return "Very Low"
+        elif 0.5 < val <= 1.0:
+            return "Low"
+        elif 1.0 < val <= 2.0:
+            return "Medium"
+        elif 2.0 < val <= 3.0:
+            return "High"
+        else:
+            return "Very High"
+    except:
+        # If it's already a string label, return it directly
+        return val
+
 # Use stored data
 if "data" in st.session_state:
     data = st.session_state["data"]
@@ -36,14 +54,18 @@ if "data" in st.session_state:
     st.dataframe(data.head())
     st.write("📋 Columns in your file:", data.columns.tolist())
 
-    label_col = "Concentration_class"
+    # Use clean label column for evaluation
+    label_col = "Concentration class range"
     valid_labels = ["Very Low", "Low", "Medium", "High", "Very High"]
 
     if label_col not in data.columns:
         st.error(f"❌ '{label_col}' column not found in uploaded file.")
         st.stop()
 
-    # Filter valid rows
+    # ✅ Convert numeric values to categories
+    data[label_col] = data[label_col].apply(map_range_to_class)
+
+    # Filter out invalid labels
     clean_data = data[data[label_col].isin(valid_labels)]
     if clean_data.empty:
         st.error("❌ No valid rows with known concentration class labels.")
@@ -56,8 +78,8 @@ if "data" in st.session_state:
             y_true = le.fit_transform(clean_data[label_col])
             label_order = le.classes_
 
-            # Predict using full feature set
-            X_input = clean_data.copy()
+            # Predict using full feature set (excluding label column)
+            X_input = clean_data.drop(columns=[label_col])
             y_pred = model.predict(X_input)
 
             # Map predictions back to readable labels
