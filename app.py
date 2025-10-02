@@ -2,6 +2,7 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+from sklearn.preprocessing import LabelEncoder
 import joblib
 import streamlit as st
 
@@ -29,17 +30,27 @@ if uploaded_file:
     st.subheader("📄 Preview of Uploaded Data")
     st.dataframe(data.head())
 
+    # Set true labels
+    if "Concentration class" in data.columns:
+        data["true_label"] = data["Concentration class"]
+
     if st.button("🔍 Predict"):
         try:
-            predictions = model.predict(data)
+            # Encode true labels
+            le = LabelEncoder()
+            y_true_encoded = le.fit_transform(data["true_label"])
+            X_input = data.drop(columns=["true_label"])
+            y_pred_encoded = model.predict(X_input)
+            y_pred_labels = le.inverse_transform(y_pred_encoded)
+
+            # Add predictions to data
             results = data.copy()
-            results["Prediction"] = predictions
-            label_map = {0: "Very Low", 1: "Low", 2: "Medium", 3: "High", 4: "Very High"}
-            results["Prediction Label"] = results["Prediction"].map(label_map)
+            results["Prediction"] = y_pred_encoded
+            results["Prediction Label"] = y_pred_labels
 
             # Summary table
             st.subheader("📊 Prediction Summary")
-            summary = results["Prediction Label"].value_counts().reindex(label_map.values(), fill_value=0)
+            summary = results["Prediction Label"].value_counts().reindex(le.classes_, fill_value=0)
             summary_df = pd.DataFrame({
                 "Concentration Level": summary.index,
                 "Count": summary.values
@@ -53,7 +64,8 @@ if uploaded_file:
                 st.dataframe(region_summary)
 
             # Advisory message
-            high_count = summary_df.loc[summary_df["Concentration Level"].isin(["High", "Very High"]), "Count"].sum()
+            high_labels = ["High", "Very High"]
+            high_count = summary_df.loc[summary_df["Concentration Level"].isin(high_labels), "Count"].sum()
             if show_advice and high_count > 0:
                 st.warning(f"⚠️ {high_count} samples show High or Very High microplastic concentration.")
                 st.markdown("""
@@ -63,42 +75,49 @@ High microplastic levels can harm marine life and ecosystems. Consider:
 - Advocating for reduced plastic use and better waste management  
 - Supporting policies that regulate industrial plastic discharge  
 - Educating communities about microplastic pollution
-
-Every small action helps protect our oceans.
 """)
 
-            # Visualization
+            # Bar chart
             fig, ax = plt.subplots()
-            sns.countplot(x="Prediction Label", data=results, order=label_map.values(), ax=ax)
+            sns.countplot(x="Prediction Label", data=results, order=le.classes_, ax=ax)
             ax.set_xlabel("Concentration Level")
             ax.set_ylabel("Sample Count")
             st.pyplot(fig)
 
             # Confusion matrix
-            if show_confusion and "true_label" in data.columns:
+            if show_confusion:
                 st.subheader("🔍 Confusion Matrix")
-                cm = confusion_matrix(data["true_label"], predictions)
+                cm = confusion_matrix(y_true_encoded, y_pred_encoded)
                 fig, ax = plt.subplots()
-                sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax)
+                sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax,
+                            xticklabels=le.classes_, yticklabels=le.classes_)
                 ax.set_xlabel("Predicted")
                 ax.set_ylabel("Actual")
                 st.pyplot(fig)
 
             # Classification report
-            if show_report and "true_label" in data.columns:
+            if show_report:
                 st.subheader("📋 Classification Report")
-                report = classification_report(data["true_label"], predictions, output_dict=True)
+                report = classification_report(y_true_encoded, y_pred_encoded, target_names=le.classes_, output_dict=True)
                 st.dataframe(pd.DataFrame(report).transpose())
 
             # Confidence plot (Logistic Regression only)
             if model_choice == "Logistic Regression":
                 st.subheader("📊 Prediction Confidence")
-                probs = model.predict_proba(data)
-                prob_df = pd.DataFrame(probs, columns=label_map.values())
+                probs = model.predict_proba(X_input)
+                prob_df = pd.DataFrame(probs, columns=le.classes_)
                 fig, ax = plt.subplots()
                 sns.boxplot(data=prob_df, ax=ax)
                 ax.set_title("Prediction Confidence Distribution")
                 st.pyplot(fig)
+
+            # Model comparison
+            if compare_models:
+                st.subheader("📈 Accuracy Comparison")
+                for name, m in models.items():
+                    y_pred = m.predict(X_input)
+                    acc = accuracy_score(y_true_encoded, y_pred)
+                    st.write(f"✅ {name}: {acc:.2f}")
 
             # Download button
             st.download_button(
