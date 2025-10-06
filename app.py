@@ -35,7 +35,7 @@ if uploaded_file:
         'year', 'month', 'day',
         'Ocean', 'Region', 'Country', 'Marine Setting', 'Sampling Method'
     ]
-    label_col = "Concentration class text"
+    label_col = "Concentration class"
 
     # Check for missing columns
     missing = [col for col in feature_cols if col not in data.columns]
@@ -89,4 +89,5 @@ if uploaded_file:
     )
 else:
     st.info("Please upload a CSV file to begin.")
+
 
