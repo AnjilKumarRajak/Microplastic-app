@@ -3,8 +3,6 @@ import pandas as pd
 import joblib
 import seaborn as sns
 import matplotlib.pyplot as plt
-
-<<<<<<< HEAD
 st.set_page_config(page_title="Microplastic Detection", layout="wide")
 
 # Sidebar info
@@ -207,3 +205,4 @@ High microplastic levels can harm marine life and ecosystems. Consider:
 else:
 
     st.info("Please upload a CSV file to begin.")
+
