@@ -204,6 +204,6 @@ High microplastic levels can harm marine life and ecosystems. Consider:
 
         except Exception as e:
             st.error(f"Prediction failed: {e}")
->>>>>>> a35e8de9e3c6e6672dfb2d06d3cc555e8991b7d0
 else:
+
     st.info("Please upload a CSV file to begin.")
