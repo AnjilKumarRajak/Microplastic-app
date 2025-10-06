@@ -44,15 +44,15 @@ if uploaded_file:
         st.stop()
 
     # Prepare input
-    X = data[feature_cols].copy()
-    X.fillna(0, inplace=True)
+    x = data[feature_cols].copy()
+    x.fillna(0, inplace=True)
 
     # Encode true labels
     le = LabelEncoder()
     y_true = le.fit_transform(data[label_col])
 
     # Predict
-    y_pred = model.predict(X)
+    y_pred = model.predict(x)
     y_labels = le.inverse_transform(y_pred)
 
     # Results
@@ -89,3 +89,4 @@ if uploaded_file:
     )
 else:
     st.info("Please upload a CSV file to begin.")
+
