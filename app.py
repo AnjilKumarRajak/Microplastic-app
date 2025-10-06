@@ -1,11 +1,62 @@
+import streamlit as st
 import pandas as pd
+import joblib
 import seaborn as sns
 import matplotlib.pyplot as plt
-from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
-from sklearn.preprocessing import LabelEncoder
-import joblib
-import streamlit as st
 
+<<<<<<< HEAD
+st.set_page_config(page_title="Microplastic Detection", layout="wide")
+
+# Sidebar info
+st.sidebar.title("🧪 Microplastic Classifier")
+st.sidebar.markdown("""
+Upload your microplastic data and choose a model to classify samples.  
+Results are shown instantly and can be downloaded.
+""")
+
+# Model selection
+model_choice = st.sidebar.selectbox("Select Model", ["KNN", "SVM", "Logistic Regression"])
+model_path = {
+    "KNN": "models/knn_model.pkl",
+    "SVM": "models/svm_model.pkl",
+    "Logistic Regression": "models/logreg_model.pkl"
+}
+model = joblib.load(model_path[model_choice])
+
+# Main header
+st.title("🌊 Microplastic Detection App")
+st.markdown("Upload your dataset and get predictions using your selected model.")
+
+# File upload
+uploaded_file = st.file_uploader("Upload your microplastic data (.csv)", type=["csv"])
+
+if uploaded_file is not None:
+    input_df = pd.read_csv(uploaded_file)
+    st.subheader("📄 Uploaded Data Preview")
+    st.dataframe(input_df)
+
+    # Run predictions
+    predictions = model.predict(input_df)
+    results = input_df.copy()
+    results["Prediction"] = predictions
+
+    st.subheader("🔍 Prediction Results")
+    st.dataframe(results)
+
+    # Download button
+    st.download_button(
+        label="📥 Download Predictions",
+        data=results.to_csv(index=False).encode("utf-8"),
+        file_name="microplastic_predictions.csv",
+        mime="text/csv"
+    )
+
+    # Visualization
+    st.subheader("📊 Prediction Distribution")
+    fig, ax = plt.subplots()
+    sns.countplot(x="Prediction", data=results, ax=ax)
+    st.pyplot(fig)
+=======
 # Load pre-trained models
 models = {
     "KNN": joblib.load("models/knn_pipeline.joblib"),
@@ -153,5 +204,6 @@ High microplastic levels can harm marine life and ecosystems. Consider:
 
         except Exception as e:
             st.error(f"Prediction failed: {e}")
+>>>>>>> a35e8de9e3c6e6672dfb2d06d3cc555e8991b7d0
 else:
     st.info("Please upload a CSV file to begin.")
