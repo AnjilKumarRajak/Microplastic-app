@@ -23,32 +23,35 @@ model = joblib.load(model_paths[model_choice])
 uploaded_file = st.file_uploader("📂 Upload your microplastic data (.csv)", type=["csv"])
 if uploaded_file:
     data = pd.read_csv(uploaded_file)
-    st.dataframe(data.head())
 
-    # Define features and label
-    label_col = "Concentration class text"
-    numeric_feat = [
+    # Clean column names
+    data.columns = data.columns.str.strip()
+
+    # Define expected columns
+    feature_cols = [
+        'Latitude (degree)', 'Longitude(degree)', 'Water Sample Depth (m)',
         'Mesh size (mm)', 'Volunteers Number', 'Collecting Time (min)',
-        'year', 'month', 'day', 'Water Sample Depth (m)',
-        'Standardized Nurdle  Amount', 'Microplastics measurement'
-    ]
-    categorical_feat = [
+        'Standardized Nurdle  Amount', 'Microplastics measurement',
+        'year', 'month', 'day',
         'Ocean', 'Region', 'Country', 'Marine Setting', 'Sampling Method'
     ]
-    feature_cols = numeric_feat + categorical_feat
+    label_col = "Concentration class text"
 
-    # Check columns
-    missing = [col for col in feature_cols + [label_col] if col not in data.columns]
+    # Check for missing columns
+    missing = [col for col in feature_cols if col not in data.columns]
     if missing:
-        st.error(f"Missing columns: {missing}")
+        st.error(f"❌ Missing columns in uploaded file: {missing}")
         st.stop()
 
-    # Encode labels
+    # Prepare input
+    X = data[feature_cols].copy()
+    X.fillna(0, inplace=True)
+
+    # Encode true labels
     le = LabelEncoder()
     y_true = le.fit_transform(data[label_col])
 
     # Predict
-    X = data[feature_cols]
     y_pred = model.predict(X)
     y_labels = le.inverse_transform(y_pred)
 
@@ -84,3 +87,5 @@ if uploaded_file:
         file_name="microplastic_predictions.csv",
         mime="text/csv"
     )
+else:
+    st.info("Please upload a CSV file to begin.")
